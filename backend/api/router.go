@@ -29,6 +29,8 @@ func SetupRouter(userHandler v1.UserHandlerInterface, todoHandler v1.TodoHandler
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(RespondJsonMiddleware)
+	// r.Use()
 
 	// Set a timeout value on the request context (ctx), that will signal
 	// through ctx.Done() that the request has timed out and further
@@ -41,17 +43,17 @@ func SetupRouter(userHandler v1.UserHandlerInterface, todoHandler v1.TodoHandler
 		r.Route("/users", func(r chi.Router) {
 			r.Post("/", userHandler.CreateUser)
 			r.Get("/", userHandler.GetAllUsers)
-			r.Get("/:id", userHandler.GetUserByID)
-			r.Delete("/:id", userHandler.DeleteUser)
+			r.Get("/{id}", userHandler.GetUserByID)
+			r.Delete("/{id}", userHandler.DeleteUser)
 		})
 
 		// todo routes
 		r.Route("/todos", func(r chi.Router) {
 			r.Post("/", todoHandler.CreateTodo)
 			r.Get("/", todoHandler.GetAllTodos)
-			r.Get("/:id", todoHandler.GetTodoByID)
-			r.Delete("/:id", todoHandler.DeleteTodo)
-			r.Put("/:id", todoHandler.UpdateTodo)
+			r.Get("/{id}", todoHandler.GetTodoByID)
+			r.Delete("/{id}", todoHandler.DeleteTodo)
+			r.Put("/{id}", todoHandler.UpdateTodo)
 		})
 
 	})

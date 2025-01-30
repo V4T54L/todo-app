@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURI  string
 	MaxOpenConns int
 	MaxIdleConns int
+	TokenSecret  []byte
 }
 
 var configInstance *Config
@@ -27,6 +28,11 @@ func GetConfig() (*Config, error) {
 		serverPort := "8080" // Default value for server port
 		if val, err := getStr("SERVER_PORT", &serverPort); err == nil {
 			instance.ServerPort = val
+		}
+
+		tokenSecret := "secret" // Default value for token secret
+		if val, err := getStr("TOKEN_SECRET", &tokenSecret); err == nil {
+			instance.TokenSecret = []byte(val)
 		}
 
 		if val, err := getStr("DB_URI", nil); err == nil {

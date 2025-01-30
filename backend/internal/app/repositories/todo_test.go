@@ -1,7 +1,10 @@
+// todo_repo_test.go
 package repositories
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -9,119 +12,160 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestCreateTodo(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestTodoRepository_CreateTodo(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewTodoRepository(db)
+	repo := NewTodoRepository(mockDB)
 
 	todo := &models.Todo{
 		Title:   "Test Todo",
-		Content: "Test Content",
-		Done:    false,
+		Content: "This is a test",
+		Status:  "Pending",
 	}
 
-	rows := sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).AddRow(1, time.Now(), time.Now())
-	mock.ExpectQuery(`INSERT INTO todos`).WithArgs(todo.Title, todo.Content, todo.Done).
-		WillReturnRows(rows)
+	mock.ExpectQuery(`INSERT INTO todos .*`).
+		WithArgs(1, todo.Title, todo.Content, todo.Status).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).
+			AddRow(1, time.Now(), time.Now()))
 
-	err = repo.CreateTodo(todo)
-	require.NoError(t, err)
-	assert.NotZero(t, todo.ID) // Verify that ID is set
+	err = repo.CreateTodo(context.Background(), 1, todo)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, todo.ID)
+
+	// Test error scenario
+	mock.ExpectQuery(`INSERT INTO todos .*`).WillReturnError(errors.New("db error"))
+	err = repo.CreateTodo(context.Background(), 1, todo)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create todo")
 }
 
-func TestGetTodoByID(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestTodoRepository_GetTodoByID(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewTodoRepository(db)
+	repo := NewTodoRepository(mockDB)
 
-	rows := sqlmock.NewRows([]string{"id", "title", "content", "done", "created_at", "updated_at"}).
-		AddRow(1, "Test Todo", "Test Content", false, time.Now(), time.Now())
+	todo := &models.Todo{
+		ID:      1,
+		Title:   "Test Todo",
+		Content: "This is a test",
+		Status:  "Pending",
+	}
 
-	mock.ExpectQuery(`SELECT id, title, content, done, created_at, updated_at FROM todos WHERE id = \$1`).
-		WithArgs(1).
-		WillReturnRows(rows)
+	mock.ExpectQuery(`SELECT .* FROM todos WHERE id = \$1 AND user_id = \$2`).
+		WithArgs(1, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "content", "status", "created_at", "updated_at"}).
+			AddRow(todo.ID, todo.Title, todo.Content, todo.Status, time.Now(), time.Now()))
 
-	todo, err := repo.GetTodoByID(1)
-	require.NoError(t, err)
-	assert.NotNil(t, todo)
-	assert.Equal(t, 1, todo.ID)
-}
+	result, err := repo.GetTodoByID(context.Background(), 1, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, todo.ID, result.ID)
 
-func TestGetTodoByIDNotFound(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := NewTodoRepository(db)
-
-	mock.ExpectQuery(`SELECT id, title, content, done, created_at, updated_at FROM todos WHERE id = \$1`).
-		WithArgs(1).
+	// Test not found scenario
+	mock.ExpectQuery(`SELECT .* FROM todos WHERE id = \$1 AND user_id = \$2`).
+		WithArgs(1, 1).
 		WillReturnError(sql.ErrNoRows)
-
-	todo, err := repo.GetTodoByID(1)
-	require.Error(t, err)
-	assert.Nil(t, todo)
-	assert.Equal(t, "todo not found", err.Error())
+	_, err = repo.GetTodoByID(context.Background(), 1, 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "todo not found or does not belong to user")
 }
 
-func TestGetAllTodos(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestTodoRepository_GetAllTodos(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewTodoRepository(db)
+	repo := NewTodoRepository(mockDB)
 
-	rows := sqlmock.NewRows([]string{"id", "title", "content", "done", "created_at", "updated_at"}).
-		AddRow(1, "Todo 1", "Content 1", false, time.Now(), time.Now()).
-		AddRow(2, "Todo 2", "Content 2", true, time.Now(), time.Now())
+	rows := sqlmock.NewRows([]string{"id", "title", "content", "status", "created_at", "updated_at"}).
+		AddRow(1, "Todo 1", "Content 1", "Pending", time.Now(), time.Now()).
+		AddRow(2, "Todo 2", "Content 2", "Completed", time.Now(), time.Now())
 
-	mock.ExpectQuery(`SELECT id, title, content, done, created_at, updated_at FROM todos`).
+	mock.ExpectQuery(`SELECT .* FROM todos WHERE user_id = \$1`).
+		WithArgs(1).
 		WillReturnRows(rows)
 
-	todos, err := repo.GetAllTodos()
-	require.NoError(t, err)
-	assert.Len(t, todos, 2)
+	todos, err := repo.GetAllTodos(context.Background(), 1)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(todos))
+
+	// Check if the returned todos match the expected values
+	assert.Equal(t, "Todo 1", todos[0].Title)
+	assert.Equal(t, "Content 1", todos[0].Content)
 }
 
-func TestUpdateTodo(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestTodoRepository_UpdateTodo(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewTodoRepository(db)
+	repo := NewTodoRepository(mockDB)
 
 	todo := &models.Todo{
 		Title:   "Updated Todo",
 		Content: "Updated Content",
-		Done:    true,
+		Status:  "Pending",
 	}
 
-	mock.ExpectExec(`UPDATE todos SET title = \$1, content = \$2, done = \$3 WHERE id = \$4`).
-		WithArgs(todo.Title, todo.Content, todo.Done, 1).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	err = repo.UpdateTodo(1, todo)
-	require.NoError(t, err)
-}
-
-func TestDeleteTodo(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := NewTodoRepository(db)
-
-	mock.ExpectExec(`DELETE FROM todos WHERE id = \$1`).
-		WithArgs(1).
+	mock.ExpectExec(`UPDATE todos SET title = \$1, content = \$2, status = \$3 WHERE id = \$4 AND user_id = \$5`).
+		WithArgs(todo.Title, todo.Content, todo.Status, 1, 1).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = repo.DeleteTodo(1)
-	require.NoError(t, err)
+	err = repo.UpdateTodo(context.Background(), 1, 1, todo)
+	assert.NoError(t, err)
+
+	// Test not found scenario
+	mock.ExpectExec(`UPDATE todos SET title = \$1, content = \$2, status = \$3 WHERE id = \$4 AND user_id = \$5`).
+		WithArgs(todo.Title, todo.Content, todo.Status, 1, 1).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err = repo.UpdateTodo(context.Background(), 1, 1, todo)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "todo not found or does not belong to user")
+}
+
+func TestTodoRepository_DeleteTodo(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
+
+	repo := NewTodoRepository(mockDB)
+
+	mock.ExpectExec(`DELETE FROM todos WHERE id = \$1 AND user_id = \$2`).
+		WithArgs(1, 1).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err = repo.DeleteTodo(context.Background(), 1, 1)
+	assert.NoError(t, err)
+
+	// Test not found scenario
+	mock.ExpectExec(`DELETE FROM todos WHERE id = \$1 AND user_id = \$2`).
+		WithArgs(2, 1).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err = repo.DeleteTodo(context.Background(), 1, 2)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "todo not found or does not belong to user")
+}
+
+func TestTodoRepository_GetAllTodos_Error(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
+
+	repo := NewTodoRepository(mockDB)
+
+	mock.ExpectQuery(`SELECT .* FROM todos WHERE user_id = \$1`).
+		WithArgs(1).
+		WillReturnError(errors.New("db error"))
+
+	todos, err := repo.GetAllTodos(context.Background(), 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get all todos")
+	assert.Nil(t, todos)
 }

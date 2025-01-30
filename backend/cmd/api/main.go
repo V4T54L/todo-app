@@ -5,9 +5,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
+	"todo_app_backend/api"
+	v1 "todo_app_backend/api/v1"
+	"todo_app_backend/config"
+	"todo_app_backend/internal/app/repositories"
+	"todo_app_backend/internal/app/services"
+	"todo_app_backend/internal/database"
 )
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
@@ -30,9 +37,29 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 }
 
 func main() {
+	if os.Getenv("ENVIRONMENT") != "PRODUCTION" {
+		err := config.LoadConfigurationFile(".env")
+		if err != nil {
+			log.Fatal("Error loading .env : ", err)
+		}
+	}
+	cfg, err := config.GetConfig()
+	if err != nil {
+		log.Fatal("Error loading config : ", err)
+	}
+
+	db, err := database.NewPostgreSQLDB(cfg.DatabaseURI, cfg.MaxIdleConns, cfg.MaxOpenConns)
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+	defer db.Close()
+
+	userHandler := v1.NewUserHandler(services.NewUserService(repositories.NewUserRepository(db.GetConn())))
+	todoHandler := v1.NewTodoHandler(services.NewTodoService(repositories.NewTodoRepository(db.GetConn())))
+
 	server := http.Server{
-		Addr: ":8080",
-		// Handler:      routes.RegisterRoutes(),
+		Addr:         ":8080",
+		Handler:      api.SetupRouter(userHandler, todoHandler),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  time.Minute,
@@ -42,7 +69,7 @@ func main() {
 
 	go gracefulShutdown(&server, done)
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		panic(fmt.Sprintf("http server error: %s", err))
 	}

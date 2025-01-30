@@ -1,94 +1,145 @@
+// user_repo_test.go
 package repositories
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"testing"
+	"time"
 
 	"todo_app_backend/internal/app/models"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestCreateUser(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestUserRepository_CreateUser(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewUserRepository(db)
-	user := &models.User{Name: "John Doe", Email: "john@example.com", Password: "password123"}
+	repo := NewUserRepository(mockDB)
 
-	mock.ExpectQuery(`INSERT INTO users \(name, email, password\) VALUES \(\$1, \$2, \$3\) RETURNING id`).
+	user := &models.User{
+		Name:     "Test User",
+		Email:    "testuser@example.com",
+		Password: "securepassword",
+	}
+
+	mock.ExpectQuery(`INSERT INTO users .*`).
 		WithArgs(user.Name, user.Email, user.Password).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
-	err = repo.CreateUser(user)
-	require.NoError(t, err)
-	assert.Equal(t, 1, user.ID)
+	err = repo.CreateUser(context.Background(), user)
+	assert.NoError(t, err)
+	assert.NotEqual(t, 0, user.ID)
+
+	// Test error scenario
+	mock.ExpectQuery(`INSERT INTO users .*`).WillReturnError(errors.New("db error"))
+	err = repo.CreateUser(context.Background(), user)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create user")
 }
 
-func TestGetUserByID_UserExists(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestUserRepository_GetUserByID(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewUserRepository(db)
+	repo := NewUserRepository(mockDB)
+
+	userID := 1
+	expectedUser := &models.User{
+		ID:        userID,
+		Name:      "Test User",
+		Email:     "testuser@example.com",
+		Password:  "securepassword",
+		CreatedAt: "time.Now()",
+	}
+
 	mock.ExpectQuery(`SELECT id, name, email, password, created_at FROM users WHERE id = \$1`).
-		WithArgs(1).
+		WithArgs(userID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "password", "created_at"}).
-			AddRow(1, "John Doe", "john@example.com", "password123", "2023-01-01 10:00:00"))
+			AddRow(expectedUser.ID, expectedUser.Name, expectedUser.Email, expectedUser.Password, expectedUser.CreatedAt))
 
-	user, err := repo.GetUserByID(1)
-	require.NoError(t, err)
-	assert.NotNil(t, user)
-	assert.Equal(t, "John Doe", user.Name)
-}
+	result, err := repo.GetUserByID(context.Background(), userID)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUser.ID, result.ID)
+	assert.Equal(t, expectedUser.Name, result.Name)
 
-func TestGetUserByID_UserNotFound(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := NewUserRepository(db)
+	// Test not found scenario
 	mock.ExpectQuery(`SELECT id, name, email, password, created_at FROM users WHERE id = \$1`).
-		WithArgs(999).
+		WithArgs(userID).
 		WillReturnError(sql.ErrNoRows)
 
-	user, err := repo.GetUserByID(999)
-	require.Error(t, err)
-	assert.Nil(t, user)
-	assert.Equal(t, "user not found", err.Error())
+	result, err = repo.GetUserByID(context.Background(), userID)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "user not found")
 }
 
-func TestGetAllUsers(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestUserRepository_GetAllUsers(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewUserRepository(db)
+	repo := NewUserRepository(mockDB)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "email", "password", "created_at"}).
+		AddRow(1, "User 1", "user1@example.com", "password1", time.Now()).
+		AddRow(2, "User 2", "user2@example.com", "password2", time.Now())
+
 	mock.ExpectQuery(`SELECT id, name, email, password, created_at FROM users`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "password", "created_at"}).
-			AddRow(1, "John Doe", "john@example.com", "password123", "2023-01-01 10:00:00").
-			AddRow(2, "Jane Doe", "jane@example.com", "password123", "2023-01-02 10:00:00"))
+		WillReturnRows(rows)
 
-	users, err := repo.GetAllUsers()
-	require.NoError(t, err)
-	assert.Len(t, users, 2)
-	assert.Equal(t, "John Doe", users[0].Name)
-	assert.Equal(t, "Jane Doe", users[1].Name)
+	users, err := repo.GetAllUsers(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(users))
+	assert.Equal(t, "User 1", users[0].Name)
+	assert.Equal(t, "User 2", users[1].Name)
+
+	// Test error scenario
+	mock.ExpectQuery(`SELECT id, name, email, password, created_at FROM users`).
+		WillReturnError(errors.New("db error"))
+
+	users, err = repo.GetAllUsers(context.Background())
+	assert.Error(t, err)
+	assert.Nil(t, users)
+	assert.Contains(t, err.Error(), "failed to get all users")
 }
 
-func TestDeleteUser(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
+func TestUserRepository_DeleteUser(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer mockDB.Close()
 
-	repo := NewUserRepository(db)
+	repo := NewUserRepository(mockDB)
+
+	userID := 1
+
 	mock.ExpectExec(`DELETE FROM users WHERE id = \$1`).
-		WithArgs(1).
-		WillReturnResult(sqlmock.NewResult(0, 1))
+		WithArgs(userID).
+		WillReturnResult(sqlmock.NewResult(0, 1)) // 1 row deleted
 
-	err = repo.DeleteUser(1)
-	require.NoError(t, err)
+	err = repo.DeleteUser(context.Background(), userID)
+	assert.NoError(t, err)
+
+	// Test not found scenario
+	mock.ExpectExec(`DELETE FROM users WHERE id = \$1`).
+		WithArgs(userID + 1).
+		WillReturnResult(sqlmock.NewResult(0, 0)) // No rows deleted
+
+	err = repo.DeleteUser(context.Background(), userID+1)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "user not found")
+
+	// Test execution error scenario
+	mock.ExpectExec(`DELETE FROM users WHERE id = \$1`).
+		WithArgs(userID).
+		WillReturnError(errors.New("db error"))
+
+	err = repo.DeleteUser(context.Background(), userID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete user")
 }

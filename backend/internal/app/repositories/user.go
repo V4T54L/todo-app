@@ -1,8 +1,10 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"todo_app_backend/internal/app/models"
 )
 
@@ -15,47 +17,72 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 }
 
 // CreateUser inserts a new user into the database
-func (r *UserRepository) CreateUser(user *models.User) error {
+func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id`
-	err := r.DB.QueryRow(query, user.Name, user.Email, user.Password).Scan(&user.ID)
-	return err
+	err := r.DB.QueryRowContext(ctx, query, user.Name, user.Email, user.Password).Scan(&user.ID)
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	user.Password = ""
+	return nil
 }
 
 // GetUserByID retrieves a user by ID
-func (r *UserRepository) GetUserByID(id int) (*models.User, error) {
+func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*models.User, error) {
 	user := &models.User{}
 	query := `SELECT id, name, email, password, created_at FROM users WHERE id = $1`
-	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt)
+	err := r.DB.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, errors.New("user not found")
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
-	return user, err
+	return user, nil
 }
 
 // GetAllUsers retrieves all users
-func (r *UserRepository) GetAllUsers() ([]models.User, error) {
+func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	var users []models.User
 	query := `SELECT id, name, email, password, created_at FROM users`
-	rows, err := r.DB.Query(query)
+	rows, err := r.DB.QueryContext(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all users: %w", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var user models.User
 		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
 	return users, nil
 }
 
 // DeleteUser removes a user by ID
-func (r *UserRepository) DeleteUser(id int) error {
+func (r *UserRepository) DeleteUser(ctx context.Context, id int) error {
 	query := `DELETE FROM users WHERE id = $1`
-	_, err := r.DB.Exec(query, id)
-	return err
+	result, err := r.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected during delete: %w", err)
+	}
+	if rowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
 }
+
+var _ UserRepoInterface = (*UserRepository)(nil)

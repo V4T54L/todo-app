@@ -1,0 +1,250 @@
+swagger: "2.0"
+info:
+  title: Todo Application API
+  description: API documentation for Todo Application
+  version: "1.0"
+  contact:
+    name: API Support
+    url: https://api.example.com/support
+    email: support@api.example.com
+
+host: "localhost:8080"
+basePath: /api/v1
+
+
+schemes:
+  # - https
+  - http
+
+paths:
+  /users:
+    post:
+      summary: Create a new user
+      description: Create a new user with name and email
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: user
+          description: User object
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+                # required: true
+                description: User's name
+              email:
+                type: string
+                # required: true
+                description: User's email
+              password:
+                type: string
+                # required: true
+                description: User's password
+      responses:
+        201:
+          description: User created successfully
+          schema:
+            # type: object
+            $ref: '#/definitions/User'
+
+    get:
+      summary: Get all users
+      description: Get all users
+      responses:
+        200:
+          description: Users retrieved successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/User'
+
+  /users/{id}:
+    get:
+      summary: Get a user by ID
+      description: Get a user by their ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: integer
+          description: User's ID
+      responses:
+        200:
+          description: User retrieved successfully
+          schema:
+            # type: object
+            $ref: '#/definitions/User'
+        404:
+          description: User not found
+
+    delete:
+      summary: Delete a user by ID
+      description: Delete a user by their ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: integer
+          description: User's ID
+      responses:
+        204:
+          description: User deleted successfully
+
+  /todos:
+    post:
+      summary: Create a new todo item
+      description: Create a new todo item with title and content
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: todo
+          description: Todo object
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+                # required: true
+                description: Todo item's title
+              content:
+                type: string
+                # required: true
+                description: Todo item's content
+      responses:
+        201:
+          description: Todo item created successfully
+          schema:
+            # type: object
+            $ref: '#/definitions/Todo'
+
+    get:
+      summary: Get all todo items
+      description: Get all todo items
+      responses:
+        200:
+          description: Todo items retrieved successfully
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Todo'
+
+  /todos/{id}:
+    get:
+      summary: Get a todo item by ID
+      description: Get a todo item by its ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: integer
+          description: Todo item's ID
+      responses:
+        200:
+          description: Todo item retrieved successfully
+          schema:
+            # type: object
+            $ref: '#/definitions/Todo'
+        404:
+          description: Todo item not found
+
+    delete:
+      summary: Delete a todo item by ID
+      description: Delete a todo item by its ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: integer
+          description: Todo item's ID
+      responses:
+        204:
+          description: Todo item deleted successfully
+
+    put:
+      summary: Update a todo item by ID
+      description: Update a todo item with title, content, and status
+      consumes:
+        - application/json
+      parameters:
+        - in: path
+          name: id
+          required: true
+          type: integer
+          description: Todo item's ID
+        - in: body
+          name: todo
+          description: Todo object
+          schema:
+            type: object
+            properties:
+              title:
+                type: string
+                description: Todo item's title
+              content:
+                type: string
+                description: Todo item's content
+              status:
+                type: string
+                description: Todo item's status
+      responses:
+        200:
+          description: Todo item updated successfully
+          schema:
+            # type: object
+            $ref: '#/definitions/Todo'
+
+definitions:
+  User:
+    type: object
+    required:
+      - ID
+      - Name
+      - Email
+      - Password
+    properties:
+      ID:
+        type: integer
+        description: User's ID
+      Name:
+        type: string
+        description: User's name
+      Email:
+        type: string
+        description: User's email
+      Password:
+        type: string
+        description: User's password
+      CreatedAt:
+        type: string
+        description: Timestamp when the user was created
+  Todo:
+    type: object
+    required:
+      - ID
+      - Title
+      - Content
+      - Status
+      - CreatedAt
+      - UpdatedAt
+    properties:
+      ID:
+        type: integer
+        description: Todo item's ID
+      Title:
+        type: string
+        description: Todo item's title
+      Content:
+        type: string
+        description: Todo item's content
+      Status:
+        type: string
+        description: Todo item's status
+      CreatedAt:
+        type: string
+        description: Timestamp when the todo item was created
+      UpdatedAt:
+        type: string
+        description: Timestamp when the todo item was last updated

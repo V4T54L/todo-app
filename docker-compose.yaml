@@ -1,0 +1,45 @@
+services:
+  todo_app_backend:
+    build:
+      context: ./backend/deploy
+      dockerfile: 
+    container_name: todo_app_backend
+    restart: always
+    environment:
+      SERVER_PORT: "8080"
+      DB_URI: "postgresql://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+      MAX_IDLE_CONNS: 20
+      MAX_OPEN_CONNS: 10
+    ports:
+      - "8080:8080"
+    depends_on:
+      - todo_db
+
+  todo_app_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "3000:5173"
+    depends_on:
+      - todo_app_backend
+    environment:
+      BACKEND_URL: "http://localhost:8080"
+
+  todo_db:
+    container_name: todo_db
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

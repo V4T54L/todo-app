@@ -41,6 +41,19 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id int) (*models.User,
 	return user, nil
 }
 
+// GetUserByEmail retrieves a user by Email
+func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	user := &models.User{}
+	query := `SELECT id, name, email, password, created_at FROM users WHERE email = $1`
+	err := r.DB.QueryRowContext(ctx, query, email).Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, errors.New("user not found")
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
+	}
+	return user, nil
+}
+
 // GetAllUsers retrieves all users
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	var users []models.User

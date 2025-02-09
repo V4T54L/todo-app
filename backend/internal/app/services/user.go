@@ -58,6 +58,17 @@ func (s *UserService) GetUserByID(ctx context.Context, id int) (*models.User, er
 	return user, nil
 }
 
+// GetUserByCreds retrieves a user by Email and Password.
+func (s *UserService) GetUserByCreds(ctx context.Context, email, password string) (*models.User, error) {
+	user, err := s.UserRepo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	utils.CheckPasswordHash(password, user.Password)
+	user.Password = ""
+	return user, nil
+}
+
 // GetAllUsers retrieves all users.
 func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	return s.UserRepo.GetAllUsers(ctx)

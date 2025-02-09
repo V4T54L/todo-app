@@ -36,6 +36,11 @@ func (m *mockUserRepo) GetUserByID(ctx context.Context, id int) (*models.User, e
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *mockUserRepo) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	args := m.Called(ctx, email)
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
 // TestCreateUser tests the CreateUser method of UserService.
 func TestCreateUser(t *testing.T) {
 	mockRepo := new(mockUserRepo)

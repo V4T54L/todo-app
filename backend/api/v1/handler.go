@@ -7,6 +7,7 @@ type UserHandlerInterface interface {
 	DeleteUser(w http.ResponseWriter, r *http.Request)
 	GetAllUsers(w http.ResponseWriter, r *http.Request)
 	GetUserByID(w http.ResponseWriter, r *http.Request)
+	LoginHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type TodoHandlerInterface interface {

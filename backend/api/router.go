@@ -39,9 +39,16 @@ func SetupRouter(userHandler v1.UserHandlerInterface, todoHandler v1.TodoHandler
 
 	r.Route("/api/v1", func(r chi.Router) {
 
+		// auth routes
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/login", userHandler.LoginHandler)
+			r.Post("/signup", userHandler.CreateUser)
+		})
+
 		// user routes
 		r.Route("/users", func(r chi.Router) {
-			r.Post("/", userHandler.CreateUser)
+			r.Use(AdminOnlyMiddleware)
+			// r.Post("/", userHandler.CreateUser)
 			r.Get("/", userHandler.GetAllUsers)
 			r.Get("/{id}", userHandler.GetUserByID)
 			r.Delete("/{id}", userHandler.DeleteUser)
@@ -49,6 +56,8 @@ func SetupRouter(userHandler v1.UserHandlerInterface, todoHandler v1.TodoHandler
 
 		// todo routes
 		r.Route("/todos", func(r chi.Router) {
+			r.Use(UserOnlyMiddleware)
+
 			r.Post("/", todoHandler.CreateTodo)
 			r.Get("/", todoHandler.GetAllTodos)
 			r.Get("/{id}", todoHandler.GetTodoByID)

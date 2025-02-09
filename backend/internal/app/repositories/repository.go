@@ -18,4 +18,5 @@ type UserRepoInterface interface {
 	DeleteUser(ctx context.Context, id int) error
 	GetAllUsers(ctx context.Context) ([]models.User, error)
 	GetUserByID(ctx context.Context, id int) (*models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*models.User, error)
 }

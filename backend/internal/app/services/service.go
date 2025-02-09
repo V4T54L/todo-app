@@ -10,6 +10,7 @@ type UserServiceInterface interface {
 	DeleteUser(ctx context.Context, id int) error
 	GetAllUsers(ctx context.Context) ([]models.User, error)
 	GetUserByID(ctx context.Context, id int) (*models.User, error)
+	GetUserByCreds(ctx context.Context, email, password string) (*models.User, error)
 }
 
 type TodoServiceInterface interface {

@@ -37,10 +37,15 @@ func ValidateToken(tokenStr string) (*models.Token, error) {
 
 	// TODO: Add logic to verify token's authenticity
 
-	var token models.Token
-	err := json.Unmarshal([]byte(tokenStr), &token)
+	data, err := base64.StdEncoding.DecodeString(tokenStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid token : %w", err)
+		return nil, fmt.Errorf("error base64 decoding token : %w", err)
+	}
+
+	var token models.Token
+	err = json.Unmarshal([]byte(data), &token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid unmarshaling token : %w", err)
 	}
 
 	if token.Exp.Before(time.Now()) {

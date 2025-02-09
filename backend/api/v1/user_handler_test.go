@@ -33,6 +33,11 @@ func (m *MockUserService) GetUserByID(ctx context.Context, id int) (*models.User
 	return args.Get(0).(*models.User), args.Error(1)
 }
 
+func (m *MockUserService) GetUserByCreds(ctx context.Context, email, password string) (*models.User, error) {
+	args := m.Called(ctx, email, password)
+	return args.Get(0).(*models.User), args.Error(1)
+}
+
 func (m *MockUserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]models.User), args.Error(1)

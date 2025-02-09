@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 	"todo_app_backend/internal/app/models"
 	"todo_app_backend/internal/app/services"
+	"todo_app_backend/internal/app/utils"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -54,6 +56,37 @@ func (h *UserHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
+}
+
+// LoginHandler handles Login request.
+func (h *UserHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.User
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.UserService.GetUserByCreds(r.Context(), req.Email, req.Password)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	tokenDetails := models.Token{UserID: user.ID, Exp: time.Now().Add(time.Minute * 15)}
+	token, err := utils.GenerateToken(tokenDetails)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Authorization", "Bearer "+token)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token": token,
+		"user":  user,
+	})
 }
 
 // GetAllUsers handles retrieving all users.

@@ -57,6 +57,7 @@ func TestCreateTodo(t *testing.T) {
 
 	body, _ := json.Marshal(todo)
 	req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 
 	handler.CreateTodo(resp, req)
@@ -92,6 +93,7 @@ func TestGetAllTodos_Success(t *testing.T) {
 	mockService.On("GetAllTodos", mock.Anything, 1).Return(todos, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/todos", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 
 	handler.GetAllTodos(resp, req)
@@ -111,6 +113,7 @@ func TestGetTodoByID_Success(t *testing.T) {
 	mockService.On("GetTodoByID", mock.Anything, 1, 1).Return(&todo, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/todos/1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 	router := chi.NewRouter()
 	router.Get("/todos/{id}", handler.GetTodoByID)
@@ -131,6 +134,7 @@ func TestGetTodoByID_NotFound(t *testing.T) {
 	mockService.On("GetTodoByID", mock.Anything, 1, 999).Return(&models.Todo{}, errors.New("todo not founs"))
 
 	req := httptest.NewRequest(http.MethodGet, "/todos/999", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 	router := chi.NewRouter()
 	router.Get("/todos/{id}", handler.GetTodoByID)
@@ -149,6 +153,7 @@ func TestUpdateTodo_Success(t *testing.T) {
 
 	body, _ := json.Marshal(todo)
 	req := httptest.NewRequest(http.MethodPut, "/todos/{id}", bytes.NewBuffer(body))
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -188,6 +193,7 @@ func TestDeleteTodo_Success(t *testing.T) {
 	mockService.On("DeleteTodo", mock.Anything, 1, 1).Return(nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/todos/{id}", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()
@@ -207,6 +213,7 @@ func TestDeleteTodo_NotFound(t *testing.T) {
 	mockService.On("DeleteTodo", mock.Anything, 1, 999).Return(errors.New("todo not founs"))
 
 	req := httptest.NewRequest(http.MethodDelete, "/todos/{id}", nil)
+	req = req.WithContext(context.WithValue(req.Context(), "userID", 1))
 	resp := httptest.NewRecorder()
 
 	rctx := chi.NewRouteContext()

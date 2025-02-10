@@ -65,7 +65,7 @@ func main() {
 		log.Println("Migration down applied successfully")
 	case "seed":
 		if err := executeMigration(conn, "db/seeders/001_init.sql"); err != nil {
-			log.Fatalf("Migration down failed: %v", err)
+			log.Fatalf("Migration seed failed: %v", err)
 		}
 		log.Println("Migration down applied successfully")
 	default:

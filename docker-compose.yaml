@@ -2,7 +2,7 @@ services:
   todo_app_backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      # dockerfile:
     container_name: todo_app_backend
     restart: always
     environment:
@@ -10,23 +10,24 @@ services:
       DB_URI: "postgresql://postgres:postgres@todo_db:5432/postgres?sslmode=disable"
       MAX_IDLE_CONNS: 20
       MAX_OPEN_CONNS: 10
+      ENVIRONMENT: PRODUCTION
     ports:
       - "8080:8080"
     depends_on:
-      - todo_db
+      - migrate
 
   todo_app_frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      # dockerfile: Dockerfile
     container_name: frontend
     restart: always
     ports:
-      - "3000:5173"
+      - "80:80"
     depends_on:
       - todo_app_backend
     environment:
-      VITE_BACKEND_URL: "http://todo_app_backend:8080"
+      VITE_BACKEND_URL: "http://todo_app_backend:8534/api/v1"
 
   todo_db:
     container_name: todo_db
@@ -40,16 +41,17 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  
+
   migrate:
-    build: .
-    command: ["/app/migrate"]
+    build: ./backend
+    command: [ "/bin/sh", "-c", "/app/migrate up" ]
     environment:
       DB_URI: "postgresql://postgres:postgres@todo_db:5432/postgres?sslmode=disable"
       MAX_IDLE_CONNS: 20
       MAX_OPEN_CONNS: 10
+      ENVIRONMENT: PRODUCTION
     depends_on:
-      - db
+      - todo_db
 
 volumes:
   postgres_data:

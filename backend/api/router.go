@@ -48,7 +48,6 @@ func SetupRouter(userHandler v1.UserHandlerInterface, todoHandler v1.TodoHandler
 		// user routes
 		r.Route("/users", func(r chi.Router) {
 			r.Use(AdminOnlyMiddleware)
-			// r.Post("/", userHandler.CreateUser)
 			r.Get("/", userHandler.GetAllUsers)
 			r.Get("/{id}", userHandler.GetUserByID)
 			r.Delete("/{id}", userHandler.DeleteUser)

@@ -32,7 +32,6 @@ COPY db/migrations ./db/migrations
 COPY db/seeders ./db/seeders
 
 # Set the entrypoint for the container
-# You can change it to `api` or `migrate` based on the command you want to run
 ENTRYPOINT ["/app/api"]
 
 # Optionally, expose the port your API server listens on

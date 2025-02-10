@@ -1,8 +1,13 @@
 import axios, { AxiosResponse, AxiosError, InternalAxiosRequestConfig, AxiosRequestHeaders } from 'axios';
 
+let baseURL = import.meta.env.VITE_BACKEND_URL
+if (!baseURL) {
+    baseURL = 'http://localhost:8080/api/v1'
+}
+
 const instance = {
     axios: axios.create({
-        baseURL: 'http://localhost:8080/api/v1',
+        baseURL: baseURL,
     }),
     token: "",
     removeToken: () => { }
